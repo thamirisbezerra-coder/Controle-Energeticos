@@ -37,7 +37,6 @@
         </div>
 
         <!-- Divisão de Layout (Formulário e Histórico) -->
-        <!-- ESTA É A SEÇÃO QUE FALTAVA -->
         <div class="grid grid-cols-1 md:grid-cols-2 md:gap-8">
 
             <!-- Coluna do Formulário -->
@@ -105,7 +104,6 @@
                 </div>
             </div>
         </div>
-        <!-- FIM DA SEÇÃO QUE FALTAVA -->
 
 
         <!-- ID de Autenticação -->
@@ -140,7 +138,17 @@
         // --- VARIÁVEIS GLOBAIS DE CONFIGURAÇÃO ---
         // Estas variáveis são injetadas pelo ambiente. NÃO MUDE.
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        // Tenta pegar a configuração do Firebase injetada pelo ambiente
+        const firebaseConfigJSON = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+        
+        let firebaseConfig;
+        try {
+             firebaseConfig = JSON.parse(firebaseConfigJSON);
+        } catch(e) {
+            console.error("Configuração do Firebase inválida:", firebaseConfigJSON);
+            firebaseConfig = {};
+        }
+
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // --- INICIALIZAÇÃO DO FIREBASE ---
@@ -161,6 +169,19 @@
         const userIdDisplay = document.getElementById('user-id-display');
 
         async function initializeFirebase() {
+            // Verifica se a configuração do Firebase está presente
+            // Se não tiver um projectId, significa que o Firebase não foi conectado
+            if (!firebaseConfig.projectId) {
+                console.error("Erro: Configuração do Firebase não encontrada. Conecte um projeto Firebase.");
+                if(formMessage) {
+                    formMessage.textContent = "Erro ao conectar com o banco de dados. Tente recarregar a página.";
+                    formMessage.className = "text-red-600 text-sm mt-3 text-center";
+                }
+                if(stockDisplay) stockDisplay.textContent = "Erro";
+                if(loadingStock) loadingStock.style.display = "none";
+                return; // Para a execução
+            }
+
             try {
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
@@ -182,7 +203,6 @@
                         setupLogsListener();
                         
                         // Habilita o formulário
-                        // Adiciona checagem para garantir que os elementos existem antes de usá-los
                         if(form && submitButton) {
                             form.addEventListener('submit', handleFormSubmit);
                             submitButton.disabled = false;
@@ -194,7 +214,6 @@
                     } else {
                         console.log("Usuário não autenticado, tentando login...");
                         
-                        // Adiciona checagem
                         if(submitButton) {
                             submitButton.disabled = true;
                             submitButton.textContent = "Autenticando...";
@@ -212,7 +231,6 @@
                 console.error("Erro ao inicializar o Firebase:", error);
                 if (stockDisplay) stockDisplay.textContent = "ERRO";
                 
-                // Adiciona checagem
                 if(formMessage) {
                     formMessage.textContent = "Erro ao conectar com o banco de dados. Tente recarregar a página.";
                     formMessage.className = "text-red-600";
@@ -239,7 +257,6 @@
         async function setupStockListener() {
             const initialStockValue = 1342;
             
-            // Adiciona checagem
             if (loadingStock) {
                 loadingStock.style.display = 'block';
             }
@@ -290,14 +307,18 @@
                 });
 
                 // Ordena os logs em memória (mais recente primeiro)
-                // Conforme as regras, não usamos orderBy do Firestore
-                logs.sort((a, b) => b.timestamp.toDate() - a.timestamp.toDate());
+                logs.sort((a, b) => {
+                    // Adiciona verificação se timestamp existe antes de chamar toDate()
+                    const timeA = a.timestamp ? a.timestamp.toDate() : 0;
+                    const timeB = b.timestamp ? b.timestamp.toDate() : 0;
+                    return timeB - timeA;
+                });
+
 
                 renderLogs(logs);
 
             }, (error) => {
                 console.error("Erro ao ouvir histórico:", error);
-                // Adiciona checagem
                 if (logsTableBody) {
                     logsTableBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Erro ao carregar histórico.</td></tr>`;
                 }
@@ -306,7 +327,6 @@
 
         // Renderiza o histórico na tabela
         function renderLogs(logs) {
-            // Adiciona checagem
             if (!logsTableBody) return;
             
             logsTableBody.innerHTML = ''; // Limpa a tabela
@@ -321,7 +341,7 @@
                 tr.className = "hover:bg-gray-50";
                 
                 // Formata a data
-                const timestamp = log.timestamp.toDate();
+                const timestamp = log.timestamp ? log.timestamp.toDate() : new Date(); // Fallback
                 const formattedDate = timestamp.toLocaleString('pt-BR', {
                     day: '2-digit',
                     month: '2-digit',
@@ -333,7 +353,7 @@
                 tr.innerHTML = `
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${formattedDate}</td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">${escapeHTML(log.name)}</td>
-                    <td class="px-4 py-3 whitespace-nowBrap text-sm text-gray-700 font-bold">${log.quantity}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 font-bold">${log.quantity}</td>
                     <td class="px-4 py-3 text-sm text-gray-700">${escapeHTML(log.reason)}</td>
                 `;
                 logsTableBody.appendChild(tr);
@@ -344,7 +364,6 @@
         async function handleFormSubmit(event) {
             event.preventDefault();
             
-            // Adiciona checagem
             if (!submitButton || !form) return;
 
             submitButton.disabled = true;
@@ -372,8 +391,6 @@
             }
 
             // --- Transação Firestore ---
-            // Usamos uma transação para garantir que o estoque seja atualizado
-            // e o log seja criado de forma atômica (ou tudo ou nada).
             try {
                 await runTransaction(db, async (transaction) => {
                     // 1. Pega o valor atual do estoque DENTRO da transação
@@ -396,8 +413,6 @@
                     transaction.update(stockRef, { current: novoEstoque });
 
                     // 5. Cria o novo registro de log
-                    // (Usamos addDoc fora da transação, mas pegamos a ref primeiro)
-                    // Correção: Para ser atômico, usamos .set() com uma nova ref.
                     const newLogRef = doc(logsCollectionRef); // Cria uma referência para um novo doc
                     transaction.set(newLogRef, {
                         name: nome,
@@ -423,7 +438,6 @@
 
         // Mostra mensagens de feedback no formulário
         function showFormMessage(message, isError = false) {
-            // Adiciona checagem
             if (!formMessage) return;
             formMessage.textContent = message;
             formMessage.className = isError ? 'text-red-600 text-sm mt-3 text-center' : 'text-green-600 text-sm mt-3 text-center';
@@ -431,6 +445,7 @@
 
         // Função simples para evitar XSS (Cross-Site Scripting)
         function escapeHTML(str) {
+            if (typeof str !== 'string') str = String(str);
             return str.replace(/[&<>"']/g, function(m) {
                 return {
                     '&': '&amp;',
@@ -448,4 +463,6 @@
     </script>
 </body>
 </html>
+
+
 
