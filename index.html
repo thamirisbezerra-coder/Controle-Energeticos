@@ -174,11 +174,12 @@
             if (!firebaseConfig.projectId) {
                 console.error("Erro: Configuração do Firebase não encontrada. Conecte um projeto Firebase.");
                 if(formMessage) {
-                    formMessage.textContent = "Erro ao conectar com o banco de dados. Tente recarregar a página.";
+                    formMessage.textContent = "Erro ao conectar com o banco de dados. Conecte um projeto Firebase em 'Serviços Conectados' ou 'Ambiente'.";
                     formMessage.className = "text-red-600 text-sm mt-3 text-center";
                 }
                 if(stockDisplay) stockDisplay.textContent = "Erro";
                 if(loadingStock) loadingStock.style.display = "none";
+                if(submitButton) submitButton.disabled = true;
                 return; // Para a execução
             }
 
@@ -232,7 +233,7 @@
                 if (stockDisplay) stockDisplay.textContent = "ERRO";
                 
                 if(formMessage) {
-                    formMessage.textContent = "Erro ao conectar com o banco de dados. Tente recarregar a página.";
+                    formMessage.textContent = "Erro ao inicializar o Firebase. Verifique a configuração.";
                     formMessage.className = "text-red-600";
                 }
             }
@@ -463,6 +464,8 @@
     </script>
 </body>
 </html>
+
+
 
 
 
