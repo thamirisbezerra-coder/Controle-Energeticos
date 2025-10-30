@@ -138,18 +138,25 @@
         // --- VARIÁVEIS GLOBAIS DE CONFIGURAÇÃO ---
         // Estas variáveis são injetadas pelo ambiente. NÃO MUDE.
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        // Tenta pegar a configuração do Firebase injetada pelo ambiente
-        const firebaseConfigJSON = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
         
-        let firebaseConfig;
-        try {
-             firebaseConfig = JSON.parse(firebaseConfigJSON);
-        } catch(e) {
-            console.error("Configuração do Firebase inválida:", firebaseConfigJSON);
-            firebaseConfig = {};
-        }
+        // --- CONEXÃO MANUAL DO FIREBASE ---
+        // Colocamos sua configuração aqui diretamente (baseado no que você colou)
+        // para pular a necessidade de "Serviços Conectados".
+        const firebaseConfig = {
+          apiKey: "AIzaSyC_L0nsIlnd97QtQ-7ZIIv47EfJeBZMAPU",
+          authDomain: "central-de-planilhas.firebaseapp.com",
+          projectId: "central-de-planilhas",
+          storageBucket: "central-de-planilhas.firebasestorage.app",
+          messagingSenderId: "766278991389",
+          appId: "1:766278991389:web:c0870f45a1ba45341490f4",
+          measurementId: "G-KTBWCEG3NX"
+        };
+        // Não precisamos mais do JSON.parse ou do firebaseConfigJSON
 
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // O token acima é removido pois causava o erro auth/custom-token-mismatch
+        // com a configuração manual do firebaseConfig.
+
 
         // --- INICIALIZAÇÃO DO FIREBASE ---
         let app, auth, db;
@@ -211,20 +218,18 @@
                         } else {
                             console.error("Erro: Elementos do formulário (form ou submitButton) não encontrados no DOM.");
                         }
-
-                    } else {
-                        console.log("Usuário não autenticado, tentando login...");
-                        
-                        if(submitButton) {
+                    } else { // <-- O BUG ESTAVA AQUI. A autenticação deve ir no 'else'.
+                        console.log("Usuário não autenticado, tentando login anônimo...");
+                        if (submitButton) {
                             submitButton.disabled = true;
                             submitButton.textContent = "Autenticando...";
                         }
-                        // Tenta autenticar com o token inicial ou anonimamente
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
+
+                        // Tenta autenticar anonimamente.
+                        // Removemos a tentativa de usar signInWithCustomToken(auth, initialAuthToken)
+                        // porque o initialAuthToken do ambiente não corresponde ao
+                        // firebaseConfig que foi "chumbado" manualmente, causando o erro.
+                        await signInAnonymously(auth);
                     }
                 });
 
@@ -464,6 +469,12 @@
     </script>
 </body>
 </html>
+
+
+
+
+
+
 
 
 
